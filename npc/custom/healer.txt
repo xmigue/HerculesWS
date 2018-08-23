@@ -1,0 +1,204 @@
+//===== Hercules Script ======================================
+//= Healer
+//===== By: ==================================================
+//= Euphy
+//===== Current Version: =====================================
+//= 1.2
+//===== Description: =========================================
+//= Basic healer script.
+//===== Additional Comments: =================================
+//= 1.0 Initial script.
+//= 1.1 Aligned coordinates with @go.
+//= 1.2 Fix variables and character stuck at healing
+//============================================================
+
+-	script	Healer	FAKE_NPC,{
+	
+	.@bCobrarHeal = 1;
+	.@nMinLevelPayHeal = 250;	// Nivel minimo para obligarle a pagar
+	.@priceHP = 30;				// Zeny required for every 100 hp 
+	.@priceSP = 20;				// Zeny required for every 10 sp 
+	.@nCadaHPCobro = 100;		// Cada 100 de hp se cobrara
+	.@nCadaSPCobro = 10;		// Cada 10 de sp se cobrara
+	.@Buffs = 1;				// Also buff players? (1: yes / 0: no)
+	.@MinLevelBuff = 200;		// Nivel minimo para recibir Bonus de 6 en Buffs
+	.@bRepairItems = 1;			// Repara items? (1: yes / 0: no)
+	.@Delay = 10;				// Heal delay, in seconds
+	
+	//dispbottom "MaxHP: "+ MaxHp + " - Current HP: " + Hp + " - HP Faltante: " + (MaxHp-Hp);
+	//dispbottom "MaxSP: "+ MaxSp + " - Current SP: " + Sp + " - SP Faltante: " + (MaxSp-Sp);
+	//set @Hp, MaxHp-Hp;
+	//set @Sp, MaxSp-Sp;
+	
+	if(MaxHp == Hp && MaxSp == Sp) { message strcharinfo(PC_NAME),"..."; end; }
+	
+	if (@HD > gettimetick(2)) end;
+	
+	.@price = 0;
+	.@bCurar = 0;
+	if (.@bCobrarHeal && .@nMinLevelPayHeal >= BaseLevel) {
+		.@nTotalHP = ((MaxHp-Hp) / .@nCadaHPCobro) * .@priceHP;
+		.@nTotalSP = ((MaxSp-Sp) / .@nCadaSPCobro) * .@priceSP;
+		.@price = .@nTotalHP + .@nTotalSP;
+		if(.@price > 0){
+			if (Zeny < .@price) { 
+				message strcharinfo(PC_NAME),"El costo por curarte es de $" + callfunc("F_InsertComma", .@price) + " Zeny.";
+				dispbottom "No tienes zeny suficiente para curarte, lo siento.";
+			}
+			else{			
+				.@bCurar = 1;
+				message strcharinfo(PC_NAME),"El costo por curarte fue de $" + callfunc("F_InsertComma", .@price) + " Zeny.";
+				Zeny -= .@price;
+				set $SaldoAcumuladoHealer, $SaldoAcumuladoHealer + .@price;
+			}
+		}
+	}
+	if(.@nMinLevelPayHeal > BaseLevel)
+		.@bCurar = 1;
+		
+	if(.@bCurar){
+		specialeffect(EF_HEAL2, AREA, playerattached()); percentheal 100,100;
+		
+		if (.@Buffs && BaseLevel <= .@MinLevelBuff) {
+			.@bLvl = BaseLevel <= .@MinLevelBuff ? 6 : 4;
+			specialeffect(EF_INCAGILITY, AREA, playerattached()); sc_start SC_INC_AGI,360000, .@bLvl;
+			specialeffect(EF_BLESSING, AREA, playerattached()); sc_start SC_BLESSING,360000, .@bLvl;
+		}
+		
+		//=========================================================================
+		// Se agrega funcion de Reparar Items Free al curar
+		if(.@bRepairItems){
+			callfunc("ReparaItems", 0);
+		}
+		//=========================================================================
+		
+		if (.@Delay) @HD = gettimetick(2)+.@Delay;
+	}
+	end;
+	
+	OnInit:
+		waitingroom "Healer",0;
+	end;
+}
+
+prontera,181,215,4	script	Identifica y Repara	4_M_05,{
+	
+	.@nSinItems = 0;
+	//=========================================================================
+	// Se agrega funcion de Reparar Items
+	if(.@bRepairItems){
+		if(callfunc("ReparaItems", 1000) != 0){
+			.@nSinItems = 1;
+		}
+	}
+	//=========================================================================
+	
+	//=========================================================================
+	// Se agrega funcion de identificador
+	getinventorylist;
+	for(set @i, 0; @i < @inventorylist_count; set @i, @i + 1) {
+		if (@inventorylist_identify[@i] == 0) set .@identify, .@identify + 1;
+	}
+	if (.@identify >= 1){ 
+		callfunc("Identifica_Items"); 
+		.@nSinItems = 1;
+	}
+	//=========================================================================
+	
+	if(.@nSinItems)
+		message strcharinfo(PC_NAME),"Listo tus items han sido identificados/reparados.";
+	else
+		message strcharinfo(PC_NAME),"No tienes items por reparar/identicar";
+}
+
+function	script	ReparaItems	{
+	.@PriceRepair = getarg(0);	// Zeny required for repair by item
+	while (getbrokenid(1)) {
+		if(Zeny >= .@PriceRepair){
+			repair(1);
+			set .@i, .@i +1;
+			set Zeny, Zeny - .@PriceRepair;
+		}
+		else{
+			dispbottom "No tienes zeny sufiente para reparar el resto de tu equipo (" + callfunc("F_InsertComma",.@PriceRepair) + " zeny c/u).";
+			break;
+		}
+	}
+	if (.@i) dispbottom .@i + " Items reparados.";
+	return .@i;
+}
+
+function	script	Identifica_Items	{
+	set @Costo, 80;
+	set @identify, 0;
+
+	if(Zeny < @Costo) goto no_zeny;
+	
+	getinventorylist;
+	for(set @i, 0; @i < @inventorylist_count; set @i, @i + 1) {
+		if (@inventorylist_identify[@i] == 0) set @identify, @identify + 1;
+	}
+	if (@identify == 0) return;
+	
+	getinventorylist;
+	for(set @i, 0; @i < @inventorylist_count; set @i, @i + 1) {
+		if (@inventorylist_identify[@i] == 0) {
+			if (Zeny < @Costo) 
+				goto no_zeny;
+			else 
+				set Zeny, Zeny - @Costo;
+
+			delitem2 @inventorylist_id[@i],1,0,0,0,0,0,0,0;
+			getitem @inventorylist_id[@i],1;
+		}
+	}
+	dispbottom "[Identifier] - Todos tus items se encuentran identificados.";
+	return;
+	end;
+
+	no_zeny:		
+		dispbottom "[Identifier] - No tienes el zeny suficiente para identificar tus items.";
+		end;
+}
+
+// Duplicates
+//============================================================
+alberta,25,240,6	duplicate(Healer)	Healer#alb	4_F_ARUNA_POP
+aldebaran,135,118,6	duplicate(Healer)	Healer#alde	4_F_ARUNA_POP
+amatsu,200,79,4	duplicate(Healer)	Healer#ama	4_F_ARUNA_POP
+ayothaya,207,169,6	duplicate(Healer)	Healer#ayo	4_F_ARUNA_POP
+comodo,184,158,6	duplicate(Healer)	Healer#com	4_F_ARUNA_POP
+einbech,57,36,6	duplicate(Healer)	Healer#einbe	4_F_ARUNA_POP
+einbroch,57,202,6	duplicate(Healer)	Healer#einbr	4_F_ARUNA_POP
+geffen,115,72,6	duplicate(Healer)	Healer#gef	4_F_ARUNA_POP
+gonryun,156,122,6	duplicate(Healer)	Healer#gon	4_F_ARUNA_POP
+hugel,89,150,6	duplicate(Healer)	Healer#hug	4_F_ARUNA_POP
+izlude,125,118,5	duplicate(Healer)	Healer#izl	4_F_ARUNA_POP
+jawaii,250,139,4	duplicate(Healer)	Healer#jaw	4_F_ARUNA_POP
+lighthalzen,152,100,6	duplicate(Healer)	Healer#lhz	4_F_ARUNA_POP
+louyang,226,103,4	duplicate(Healer)	Healer#lou	4_F_ARUNA_POP
+manuk,272,144,6	duplicate(Healer)	Healer#man	4_F_ARUNA_POP
+mid_camp,203,289,6	duplicate(Healer)	Healer#mid	4_F_ARUNA_POP
+moc_ruins,72,164,4	duplicate(Healer)	Healer#moc	4_F_ARUNA_POP
+morocc,153,97,6	duplicate(Healer)	Healer#mor	4_F_ARUNA_POP
+moscovia,220,191,4	duplicate(Healer)	Healer#mos	4_F_ARUNA_POP
+niflheim,212,182,5	duplicate(Healer)	Healer#nif	4_F_ARUNA_POP
+payon,179,106,4	duplicate(Healer)	Healer#pay	4_F_ARUNA_POP
+prontera,162,193,4	duplicate(Healer)	Healer#prt	4_F_ARUNA_POP
+rachel,125,116,6	duplicate(Healer)	Healer#rac	4_F_ARUNA_POP
+splendide,201,153,4	duplicate(Healer)	Healer#spl	4_F_ARUNA_POP
+thor_camp,249,74,4	duplicate(Healer)	Healer#thor	4_F_ARUNA_POP
+umbala,105,148,3	duplicate(Healer)	Healer#umb	4_F_ARUNA_POP
+veins,217,121,4	duplicate(Healer)	Healer#ve	4_F_ARUNA_POP
+xmas,143,136,4	duplicate(Healer)	Healer#xmas	4_F_ARUNA_POP
+yuno,164,45,4	duplicate(Healer)	Healer#yuno	4_F_ARUNA_POP
+
+// Duplicates (Renewal)
+//============================================================
+brasilis,194,221,6	duplicate(Healer)	Healer#bra	4_F_ARUNA_POP
+dewata,195,187,4	duplicate(Healer)	Healer#dew	4_F_ARUNA_POP
+dicastes01,201,194,4	duplicate(Healer)	Healer#dic	4_F_ARUNA_POP
+ecl_in01,45,60,4	duplicate(Healer)	Healer#ecl	4_F_ARUNA_POP
+malangdo,132,114,6	duplicate(Healer)	Healer#mal	4_F_ARUNA_POP
+malaya,205,205,6	duplicate(Healer)	Healer#ma	4_F_ARUNA_POP
+mora,55,152,4	duplicate(Healer)	Healer#mora	4_F_ARUNA_POP
