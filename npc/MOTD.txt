@@ -1,0 +1,88 @@
+//================= Hercules Script =======================================
+//=       _   _                     _
+//=      | | | |                   | |
+//=      | |_| | ___ _ __ ___ _   _| | ___  ___
+//=      |  _  |/ _ \ '__/ __| | | | |/ _ \/ __|
+//=      | | | |  __/ | | (__| |_| | |  __/\__ \
+//=      \_| |_/\___|_|  \___|\__,_|_|\___||___/
+//================= License ===============================================
+//= This file is part of Hercules.
+//= http://herc.ws - http://github.com/HerculesWS/Hercules
+//=
+//= Copyright (C) 2013-2015  Hercules Dev Team
+//=
+//= Hercules is free software: you can redistribute it and/or modify
+//= it under the terms of the GNU General Public License as published by
+//= the Free Software Foundation, either version 3 of the License, or
+//= (at your option) any later version.
+//=
+//= This program is distributed in the hope that it will be useful,
+//= but WITHOUT ANY WARRANTY; without even the implied warranty of
+//= MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//= GNU General Public License for more details.
+//=
+//= You should have received a copy of the GNU General Public License
+//= along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//=========================================================================
+//= Message of the Day script
+//=========================================================================
+
+// run when any character logs in, attached to them.
+-	script	HerculesMOTD	FAKE_NPC,{
+	message strcharinfo(PC_NAME),"Bienvenido, disfruta tu estadia!.";
+	end;
+}
+
+-	script	Sample	FAKE_NPC,{
+	OnInit:
+		setarray .Map$, // <mapname>,<Map Nick>,
+			"alberta","Alberta, Ciudad del Comercio",
+			"aldebaran","Aldebaran, Ciudad de los Alquimistas",
+			"amatsu"," Amatsu, the Land of Destiny",
+			"ayothaya","Ayothaya",
+			"brasilis","Brasilis",
+			"comodo","Comodo, Beach town",
+			"dewata","Dewata",
+			"dicastes01","El Dicastes, the Sapha Capital",
+			"eclage","Eclage",
+			"einbroch","Einbroch, the city of steel",
+			"einbech","Einbech",
+			"geffen","Geffen, Reino de los Magos",
+			"gonryun","Gonryun, the Hermit Land",
+			//"harboro1","Rock Ridge, Untamed Wilderness",
+			"hugel","Hugel, the Quaint Garden Village",
+			"izlude","Izlude, La ciudad de los Swordman",
+			"jawaii","Jawaii, the Honeymoon Island",
+			//"lasagna","Lasagna, Home of the Doram Race",
+			"lighthalzen","Lightharlzen, the City-State of Prosperity",
+			"louyang","Louyang, the highland",
+			"malangdo","Malangdo Island",
+			"malaya","Malaya, Port Malaya",
+			"manuk","Manuk, Mining Village Manuk",
+			"mid_camp","Midcamp",
+			"mora","Mora, The Laphine Village",
+			"morocc","Morroc Town",
+			"moscovia","Moscovia",
+			"niflheim","Nifflheim, Realm of the Dead",
+			"payon","Payon, La ciudad guardiana de los bosques",
+			"prontera","Prontera, Reino de Rune-Midgard",
+			"rachel","Rachel, Capital of Arunafeltz States",
+			"splendide","Splendide, Forest Village Splendide",
+			"umbala","Umbala, Wootan Tribe's Village",
+			"veins","Veins, the Canyon Village",
+			"xmas","Lutie, Snow Village",
+			"yuno","Yuno, the capital of Schwarzwald Republic";
+
+		for( set .i,0; .i < getarraysize( .Map$ ) - 1; set .i,.i + 2 )
+			setmapflag .Map$[.i],mf_loadevent;
+		end;
+
+	OnPCLoadMapEvent:
+		for( set .i,0; .i < getarraysize( .Map$ ) - 1; set .i,.i + 2 ){
+			if( strcharinfo(3) == .Map$[.i] ){
+				announce "Bienvenido a "+.Map$[.i+1]+".",bc_self|bc_blue, 0x66AAFF, 0x190, 20;
+				break;
+			}
+		}
+	end;
+}
